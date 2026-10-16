@@ -1,0 +1,11 @@
+{
+  "name": "jewellery-erp",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently -n api,admin,store -c blue,green,yellow \"npm run dev --prefix backend\" \"npm run dev --prefix admin-panel\" \"npm run dev --prefix storefront -- --port 5174\"",
+    "check": "node scripts/check-connection.mjs"
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.0"
+  }
+}
