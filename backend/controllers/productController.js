@@ -1,39 +1,32 @@
 import Product from "../models/Product.js";
-import cloudinary from "../config/cloudinary.js";
+import { uploadBuffer } from "../utils/cloudinary.js";
 
-// Helper function to upload memory buffer to Cloudinary
-const uploadToCloudinary = (fileBuffer) => {
-  return new Promise((resolve, reject) => {
-    const stream = cloudinary.uploader.upload_stream(
-      { folder: "jewellery-erp" },
-      (error, result) => {
-        if (error) reject(error);
-        else resolve(result.secure_url);
-      }
-    );
-    stream.end(fileBuffer);
-  });
-};
-
-// Helper to parse FormData fields correctly
+// Parse FormData text fields into real numbers / booleans.
+// images and imageUrl are never taken from the form: photos are saved only
+// through the upload code below and the /api/cms image endpoints.
 const parseProductData = (body) => {
   const parsed = { ...body };
-  
-  // Convert numeric fields if present
-  const numericFields = ["grossWeight", "netWeight", "stoneWeight", "quantity", "makingCharge", "wastagePercentage"];
+  delete parsed.images;
+  delete parsed.imageUrl;
+  delete parsed._id;
+  delete parsed.createdBy;
+
+  const numericFields = [
+    "grossWeight", "netWeight", "stoneWeight", "quantity", "makingCharge", "wastagePercent",
+  ];
   numericFields.forEach((field) => {
     if (parsed[field] !== undefined && parsed[field] !== "") {
       parsed[field] = Number(parsed[field]);
+    } else if (parsed[field] === "") {
+      delete parsed[field];
     }
   });
 
-  // Convert boolean fields if present
-  if (parsed.isFeatured !== undefined) {
-    parsed.isFeatured = parsed.isFeatured === "true" || parsed.isFeatured === true;
-  }
-  if (parsed.showOnWebsite !== undefined) {
-    parsed.showOnWebsite = parsed.showOnWebsite === "true" || parsed.showOnWebsite === true;
-  }
+  ["isFeatured", "showOnWebsite", "isActive"].forEach((field) => {
+    if (parsed[field] !== undefined) {
+      parsed[field] = parsed[field] === "true" || parsed[field] === true;
+    }
+  });
 
   return parsed;
 };
@@ -41,26 +34,18 @@ const parseProductData = (body) => {
 // POST /api/products  (admin, manager)
 export const addProduct = async (req, res) => {
   try {
-    let imageUrl = "";
+    const productData = { ...parseProductData(req.body), createdBy: req.user._id };
+
     if (req.file) {
-      imageUrl = await uploadToCloudinary(req.file.buffer);
-    }
-
-    const cleanedData = parseProductData(req.body);
-    const productData = { 
-      ...cleanedData, 
-      createdBy: req.user._id 
-    };
-
-    if (imageUrl) {
-      productData.imageUrl = imageUrl;
-      productData.images = [imageUrl];
+      const uploaded = await uploadBuffer(req.file.buffer, "products"); // { url, publicId }
+      productData.images = [uploaded];
+      productData.imageUrl = uploaded.url;
     }
 
     const product = await Product.create(productData);
     res.status(201).json(product);
   } catch (err) {
-    res.status(400).json({ message: err.message });
+    res.status(err.statusCode || 400).json({ message: err.message });
   }
 };
 
@@ -77,6 +62,7 @@ export const getProducts = async (req, res) => {
       filter.$or = [
         { name: { $regex: search, $options: "i" } },
         { hallmarkNo: { $regex: search, $options: "i" } },
+        { sku: { $regex: search, $options: "i" } },
       ];
     }
 
@@ -119,23 +105,18 @@ export const updateProduct = async (req, res) => {
       return res.status(404).json({ message: "Product not found" });
     }
 
-    let imageUrl = "";
+    Object.assign(product, parseProductData(req.body));
+
     if (req.file) {
-      imageUrl = await uploadToCloudinary(req.file.buffer);
-    }
-
-    const cleanedData = parseProductData(req.body);
-    Object.assign(product, cleanedData);
-
-    if (imageUrl) {
-      product.imageUrl = imageUrl;
-      product.images = [imageUrl];
+      const uploaded = await uploadBuffer(req.file.buffer, "products");
+      product.images.push(uploaded);
+      product.imageUrl = product.images[0].url;
     }
 
     await product.save();
     res.json(product);
   } catch (err) {
-    res.status(400).json({ message: err.message });
+    res.status(err.statusCode || 400).json({ message: err.message });
   }
 };
 
