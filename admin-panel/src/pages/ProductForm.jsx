@@ -2,11 +2,12 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import api from "../api/axios";
 import toast from "react-hot-toast";
-
+import ProductImages from "../components/ProductImages";
+ 
 // Standard categories and purity standards mapping
 const CATEGORIES = ["Ring", "Chain", "Bangle", "Earring", "Necklace"];
 const PURITIES = { Gold: ["24K", "22K", "18K"], Silver: ["999", "925"] };
-
+ 
 // Default initial state for form fields
 const empty = {
   name: "",
@@ -26,7 +27,7 @@ const empty = {
   imageUrl: "",
   images: [],
 };
-
+ 
 export default function ProductForm() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -34,7 +35,7 @@ export default function ProductForm() {
   const [imageFile, setImageFile] = useState(null);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
-
+ 
   // Fetch product data if editing an existing product
   useEffect(() => {
     if (!id) return;
@@ -49,7 +50,7 @@ export default function ProductForm() {
         setError("Failed to load product details");
       });
   }, [id]);
-
+ 
   // Handle standard form field changes
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -61,44 +62,43 @@ export default function ProductForm() {
       return next;
     });
   };
-
+ 
   // Handle form submission and payload construction
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
-
+ 
     if (Number(form.netWeight) > Number(form.grossWeight)) {
       return setError("Net weight cannot exceed gross weight");
     }
-
+ 
     setSaving(true);
     try {
       const formData = new FormData();
-
+ 
       // Append form fields to FormData
+      // Server-owned fields are never sent back. Photos are saved only through
+      // the "image" file below and the Website photos box (ProductImages).
+      const SKIP = ["_id", "__v", "images", "imageUrl", "createdBy", "createdAt", "updatedAt"];
       Object.entries(form).forEach(([key, value]) => {
-        if (key === "images" && Array.isArray(value)) {
-          formData.append(key, JSON.stringify(value));
-        } else if (value !== null && value !== undefined) {
+        if (SKIP.includes(key)) return;
+        if (value !== null && value !== undefined) {
           formData.append(key, value);
         }
       });
-
+ 
       // Attach file if selected
       if (imageFile) {
         formData.append("image", imageFile);
       }
-
-      const config = {
-        headers: { "Content-Type": "multipart/form-data" },
-      };
-
+ 
+      // No Content-Type header here: the browser adds multipart/form-data with the boundary
       if (id) {
-        await api.put(`/products/${id}`, formData, config);
+        await api.put(`/products/${id}`, formData);
       } else {
-        await api.post("/products", formData, config);
+        await api.post("/products", formData);
       }
-
+ 
       toast.success(id ? "Product updated successfully" : "Product added successfully");
       navigate("/products");
     } catch (err) {
@@ -108,7 +108,7 @@ export default function ProductForm() {
       setSaving(false);
     }
   };
-
+ 
   // Helper function to generate labeled inputs
   const input = (name, label, type = "text", extra = {}) => (
     <div>
@@ -123,21 +123,22 @@ export default function ProductForm() {
       />
     </div>
   );
-
+ 
   // Compute current image URL for display
   const currentImageUrl = imageFile
     ? URL.createObjectURL(imageFile)
-    : form.imageUrl || (form.images && form.images[0]) || "";
-
+    : form.imageUrl || form.images?.[0]?.url || "";
+ 
   return (
+    <div className="space-y-4">
     <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-md p-6 max-w-3xl space-y-4 border border-gray-200">
       <h1 className="text-xl font-bold text-gray-800">{id ? "Edit Product" : "Add Product"}</h1>
       {error && <p className="text-red-600 text-sm font-semibold">{error}</p>}
-
+ 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {input("name", "Product Name", "text", { required: true })}
         {input("sku", "SKU / Barcode", "text", { required: true })}
-
+ 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
           <select
@@ -153,7 +154,7 @@ export default function ProductForm() {
             ))}
           </select>
         </div>
-
+ 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Metal</label>
           <select
@@ -169,7 +170,7 @@ export default function ProductForm() {
             ))}
           </select>
         </div>
-
+ 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Purity</label>
           <select
@@ -185,13 +186,13 @@ export default function ProductForm() {
             ))}
           </select>
         </div>
-
+ 
         {input("quantity", "Quantity", "number", { min: 0, required: true })}
         {input("grossWeight", "Gross Weight (g)", "number", { step: "0.001", min: 0, required: true })}
         {input("netWeight", "Net Weight (g)", "number", { step: "0.001", min: 0, required: true })}
         {input("stoneWeight", "Stone Weight (g)", "number", { step: "0.001", min: 0 })}
         {input("wastagePercent", "Wastage %", "number", { step: "0.01", min: 0 })}
-
+ 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Making Charge Type</label>
           <select
@@ -204,31 +205,39 @@ export default function ProductForm() {
             <option value="fixed">Fixed</option>
           </select>
         </div>
-
+ 
         {input("makingCharge", "Making Charge (₹)", "number", { step: "0.01", min: 0, required: true })}
         {input("hallmarkNo", "Hallmark No")}
         {input("huid", "HUID")}
       </div>
-
+ 
       {/* Image Preview & File Upload Input */}
       <div className="space-y-2 pt-2">
         <label className="block text-sm font-medium text-gray-700">Product Image</label>
-
+ 
         {currentImageUrl && (
           <div className="flex items-center gap-3 p-2 border border-gray-200 rounded-md max-w-xs bg-gray-50">
             <img src={currentImageUrl} alt="Product Preview" className="h-16 w-16 object-cover rounded-md" />
             <span className="text-xs text-gray-500">{imageFile ? "New Image Selected" : "Current Image"}</span>
           </div>
         )}
-
+ 
         <input
           type="file"
-          accept="image/*"
-          onChange={(e) => setImageFile(e.target.files[0])}
+          accept="image/jpeg,image/png,image/webp"
+          onChange={(e) => {
+            const file = e.target.files[0];
+            if (file && file.size > 5 * 1024 * 1024) {
+              toast.error("Image must be under 5 MB");
+              e.target.value = "";
+              return;
+            }
+            setImageFile(file || null);
+          }}
           className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-amber-600 file:text-white hover:file:bg-amber-700 cursor-pointer"
         />
       </div>
-
+ 
       {/* Action Buttons */}
       <div className="flex gap-3 pt-4">
         <button
@@ -247,5 +256,8 @@ export default function ProductForm() {
         </button>
       </div>
     </form>
+ 
+    {id && <ProductImages productId={id} />}
+    </div>
   );
 }

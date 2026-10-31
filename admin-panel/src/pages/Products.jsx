@@ -128,19 +128,27 @@ export default function Products() {
         <table className="w-full text-sm">
           <thead className="bg-gray-100 text-left">
             <tr>
-              <th className="p-3">SKU</th><th className="p-3">Name</th><th className="p-3">Category</th>
+              <th className="p-3">Photo</th><th className="p-3">SKU</th><th className="p-3">Name</th><th className="p-3">Category</th>
               <th className="p-3">Metal</th><th className="p-3">Net Wt (g)</th>
               <th className="p-3">Qty</th>{canEdit && <th className="p-3">Actions</th>}
             </tr>
           </thead>
           <tbody>
-            {loading && <tr><td className="p-3" colSpan={7}>Loading...</td></tr>}
+            {loading && <tr><td className="p-3" colSpan={8}>Loading...</td></tr>}
             {!loading && products.length === 0 && (
-              <tr><td className="p-3 text-gray-500" colSpan={7}>No products found
+              <tr><td className="p-3 text-gray-500" colSpan={8}>No products found
               </td></tr>
             )}
             {products.map((p) => (
               <tr key={p._id} className="border-t">
+                <td className="p-3">
+                  {(p.images?.[0]?.url || p.imageUrl) ? (
+                    <img src={p.images?.[0]?.url || p.imageUrl} alt={p.name} loading="lazy"
+                      className="h-10 w-10 rounded object-cover border" />
+                  ) : (
+                    <span className="inline-block h-10 w-10 rounded border bg-gray-100" />
+                  )}
+                </td>
                 <td className="p-3">{p.sku || p.barcode}</td>
                 <td className="p-3">{p.name}</td>
                 <td className="p-3">{p.category}</td>

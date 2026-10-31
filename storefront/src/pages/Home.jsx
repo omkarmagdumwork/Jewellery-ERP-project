@@ -110,7 +110,7 @@ export default function Home() {
 
       <section className="mx-auto max-w-7xl px-4 py-14 md:py-20">
         <div className="flex flex-wrap items-end justify-between gap-3">
-          <h2 className="font-display text-3xl text-velvet-900 md:text-4xl">
+          <h2 className="font-display text-3xl  text-velvet-900 md:text-4xl">
             New and featured pieces
           </h2>
           <Link to="/collection" className="btn-outline-dark btn-sm">

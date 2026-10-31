@@ -9,7 +9,10 @@ const parseProductData = (body) => {
   delete parsed.images;
   delete parsed.imageUrl;
   delete parsed._id;
+  delete parsed.__v;
   delete parsed.createdBy;
+  delete parsed.createdAt;
+  delete parsed.updatedAt;
 
   const numericFields = [
     "grossWeight", "netWeight", "stoneWeight", "quantity", "makingCharge", "wastagePercent",
