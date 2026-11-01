@@ -45,7 +45,7 @@ export default function HeroSlider() {
   useEffect(() => {
     if (count < 2 || paused) return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const timer = setInterval(next, 6000);
+    const timer = setInterval(next, 5000);
     return () => clearInterval(timer);
   }, [count, paused, next]);
 
@@ -56,9 +56,13 @@ export default function HeroSlider() {
       aria-roledescription="carousel"
       aria-label="Featured offers"
       className="relative h-[420px] overflow-hidden bg-velvet-900 sm:h-[480px] lg:h-[560px]"
-      onMouseEnter={() => setPaused(true)}
-      onMouseLeave={() => setPaused(false)}
-      onFocus={() => setPaused(true)}
+      // Pause only for a real mouse hover. On touch screens, a tap would otherwise
+      // leave the slider paused forever.
+      onPointerEnter={(e) => { if (e.pointerType === "mouse") setPaused(true); }}
+      onPointerLeave={(e) => { if (e.pointerType === "mouse") setPaused(false); }}
+      // Pause for keyboard focus only. Clicking an arrow or dot with the mouse must not
+      // freeze autoplay, which the old onFocus handler did.
+      onFocus={(e) => { if (e.target.matches?.(":focus-visible")) setPaused(true); }}
       onBlur={() => setPaused(false)}
     >
       {slides.map((s, i) => (
